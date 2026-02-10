@@ -11,7 +11,7 @@
 
   <div class="bg-zinc-900 rounded-2xl shadow-xl p-6 w-full max-w-lg text-center">
     <h1 class="text-3xl font-bold mb-1">🚀 CYBER-Coin</h1>
-    <p class="text-sm text-zinc-400 mb-4">Realistischer Live-Kurs (GitHub Server)</p>
+    <p class="text-sm text-zinc-400 mb-4">Echter Live-Kurs (GitHub Server & API)</p>
 
     <div class="text-5xl font-mono mb-2" id="price">Lädt…</div>
     <p class="text-xs text-zinc-500 mb-4">1 CYBER = CHF</p>
@@ -45,50 +45,63 @@ let chart;
 let prices = [];
 let labels = [];
 let displayPrice = null;
+const targetPrice = 70000;
+const initialGrowthRate = 0.0000008; // sehr kleine Drift für Anfang
+const apiURL = 'https://bissegger.github.io/CYBER-Coin/';
 
 async function loadPrice() {
-  try {
-    const res = await fetch('https://raw.githubusercontent.com/bissegger/CYBER-Coin/main/price.json');
-    const data = await res.json();
+    try {
+        const res = await fetch(apiURL);
+        const data = await res.json();
 
-    prices.push(data.price);
-    labels.push(new Date().toLocaleTimeString());
+        // Startwert ±1% zufällig
+        let startPrice = data.price * (1 + (Math.random() - 0.5) * 0.02);
+        prices.push(startPrice);
+        labels.push(new Date().toLocaleTimeString());
 
-    if (prices.length > 20) { prices.shift(); labels.shift(); }
+        if(prices.length > 20){ prices.shift(); labels.shift(); }
 
-    document.getElementById('updated').innerText = 'Letztes Update: ' + data.updated;
+        // Sanfte Anpassung beim Neuladen
+        displayPrice = displayPrice === null ? startPrice : displayPrice * 0.8 + startPrice * 0.2;
 
-    if(displayPrice === null) displayPrice = data.price;
-    updateChart();
-  } catch (e) {
-    document.getElementById('price').innerText = 'Fehler';
-  }
+        document.getElementById('updated').innerText = 'Letztes Update: ' + data.updated;
+        updateChart();
+    } catch (e) {
+        document.getElementById('price').innerText = 'Fehler beim Laden der API';
+    }
 }
 
 function animatePrice() {
-  if (prices.length === 0) return;
-  const target = 70000;
-  const drift = (target - displayPrice) * 0.00002;
-  const noise = (Math.random() - 0.5) * displayPrice * 0.0003;
-  displayPrice += drift + noise;
-  document.getElementById('price').innerText = displayPrice.toFixed(3);
+    if(prices.length === 0) return;
+
+    // Exponentielle Drift + kleine Markt-Schwankungen
+    const growthRate = initialGrowthRate + (targetPrice - displayPrice)/(targetPrice*1000000);
+    const noise = (Math.random()-0.5) * displayPrice * 0.0005;
+    displayPrice += displayPrice * growthRate + noise;
+
+    document.getElementById('price').innerText = displayPrice.toFixed(3);
 }
 
-function updateChart() {
-  const ctx = document.getElementById('chart');
-  if (!chart) {
-    chart = new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ data: prices, borderColor: '#22c55e', tension: 0.3 }] }, options: { plugins: { legend: { display: false } }, scales: { x: { display: false } } } });
-  } else { chart.update(); }
+function updateChart(){
+    const ctx = document.getElementById('chart');
+    if(!chart){
+        chart = new Chart(ctx, {
+            type:'line',
+            data:{ labels:labels, datasets:[{ data:prices, borderColor:'#22c55e', tension:0.3 }]},
+            options:{ plugins:{legend:{display:false}}, scales:{x:{display:false}}}
+        });
+    } else { chart.update(); }
 }
 
-function convert() {
-  const amount = Number(document.getElementById('amount').value);
-  if(!displayPrice || !amount) return;
-  document.getElementById('result').innerText = amount + ' CYBER = ' + (amount * displayPrice).toFixed(2) + ' CHF';
+function convert(){
+    const amount = Number(document.getElementById('amount').value);
+    if(!displayPrice || !amount) return;
+    document.getElementById('result').innerText = amount + ' CYBER = ' + (amount*displayPrice).toFixed(2) + ' CHF';
 }
 
+// Starte Live-Kurs
 loadPrice();
-setInterval(loadPrice, 300000); // fetch alle 5 Minuten von GitHub
+setInterval(loadPrice, 300000); // fetch alle 5 Minuten von GitHub (Basiswert)
 setInterval(animatePrice, 3000); // Animation alle 3 Sekunden
 </script>
 
