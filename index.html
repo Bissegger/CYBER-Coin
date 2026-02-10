@@ -47,11 +47,12 @@ let labels = [];
 let displayPrice = null;
 const targetPrice = 70000;
 const initialGrowthRate = 0.0000008; // sehr kleine Drift für Anfang
-const apiURL = 'https://bissegger.github.io/CYBER-Coin/';
+const apiURL = 'https://raw.githubusercontent.com/bissegger/CYBER-Coin/main/price.json';
 
 async function loadPrice() {
     try {
         const res = await fetch(apiURL);
+        if(!res.ok) throw new Error('Netzwerkfehler');
         const data = await res.json();
 
         // Startwert ±1% zufällig
@@ -67,19 +68,21 @@ async function loadPrice() {
         document.getElementById('updated').innerText = 'Letztes Update: ' + data.updated;
         updateChart();
     } catch (e) {
-        document.getElementById('price').innerText = 'Fehler beim Laden der API';
+        console.error('Fehler beim Laden der API:', e);
+        // Fallback: Zufallswert ± kleine Schwankung
+        if(displayPrice === null) displayPrice = 1 * (1 + (Math.random()-0.5)*0.05);
+        document.getElementById('price').innerText = displayPrice.toFixed(3) + ' CHF (Offline-Fallback)';
     }
 }
 
 function animatePrice() {
     if(prices.length === 0) return;
 
-    // Exponentielle Drift + kleine Markt-Schwankungen
     const growthRate = initialGrowthRate + (targetPrice - displayPrice)/(targetPrice*1000000);
     const noise = (Math.random()-0.5) * displayPrice * 0.0005;
     displayPrice += displayPrice * growthRate + noise;
 
-    document.getElementById('price').innerText = displayPrice.toFixed(3);
+    document.getElementById('price').innerText = displayPrice.toFixed(3) + ' CHF';
 }
 
 function updateChart(){
