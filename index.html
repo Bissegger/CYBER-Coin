@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -11,7 +12,7 @@
 
   <div class="bg-zinc-900 rounded-2xl shadow-xl p-6 w-full max-w-lg text-center">
     <h1 class="text-3xl font-bold mb-1">🚀 CYBER-Coin</h1>
-    <p class="text-sm text-zinc-400 mb-4">Echter Live-Kurs (GitHub Server & API)</p>
+    <p class="text-sm text-zinc-400 mb-4">Echter Live-Kurs (GitHub Pages, Repo-intern)</p>
 
     <div class="text-5xl font-mono mb-2" id="price">Lädt…</div>
     <p class="text-xs text-zinc-500 mb-4">1 CYBER = CHF</p>
@@ -47,7 +48,7 @@ let labels = [];
 let displayPrice = null;
 const targetPrice = 70000;
 const initialGrowthRate = 0.0000008; // sehr kleine Drift für Anfang
-const apiURL = 'https://raw.githubusercontent.com/bissegger/CYBER-Coin/main/price.json';
+const apiURL = 'price.json'; // relativ zum Repo
 
 async function loadPrice() {
     try {
@@ -104,7 +105,7 @@ function convert(){
 
 // Starte Live-Kurs
 loadPrice();
-setInterval(loadPrice, 300000); // fetch alle 5 Minuten von GitHub (Basiswert)
+setInterval(loadPrice, 300000); // fetch alle 5 Minuten aus dem Repo
 setInterval(animatePrice, 3000); // Animation alle 3 Sekunden
 </script>
 
