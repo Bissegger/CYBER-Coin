@@ -2,7 +2,7 @@ name: CYBER-Coin Kurs Update
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # alle 5 Minuten
+    - cron: '*/5 * * * *' # alle 5 Minuten
   workflow_dispatch:
 
 jobs:
@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Repo auschecken
+      - name: Checkout Repo
         uses: actions/checkout@v4
 
-      - name: Preis berechnen
+      - name: Berechne neuen Preis
         run: |
           PRICE_FILE=price.json
 
@@ -30,10 +30,7 @@ jobs:
 
           TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
 
-          jq -n \
-            --argjson price $(printf "%.3f" $NEW_PRICE) \
-            --arg updated "$TIMESTAMP" \
-            '{price: $price, updated: $updated}' > price.json
+          jq -n --argjson price $(printf "%.3f" $NEW_PRICE) --arg updated "$TIMESTAMP" '{price: $price, updated: $updated}' > price.json
 
       - name: Commit & Push
         run: |
