@@ -48,7 +48,7 @@ let labels = [];
 
 async function loadPrice() {
   try {
-    const res = await fetch('https://raw.githubusercontent.com/USERNAME/REPO/main/price.json');
+    const res = await fetch('https://bissegger.github.io/CYBER-Coin/');
     const data = await res.json();
 
     document.getElementById('price').innerText = data.price.toFixed(3);
