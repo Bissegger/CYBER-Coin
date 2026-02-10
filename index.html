@@ -11,7 +11,7 @@
 
   <div class="bg-zinc-900 rounded-2xl shadow-xl p-6 w-full max-w-lg text-center">
     <h1 class="text-3xl font-bold mb-1">🚀 CYBER-Coin</h1>
-    <p class="text-sm text-zinc-400 mb-4">Realistischer Live‑Kurs (GitHub Pages)</p>
+    <p class="text-sm text-zinc-400 mb-4">Realistischer Live-Kurs (GitHub Server)</p>
 
     <div class="text-5xl font-mono mb-2" id="price">Lädt…</div>
     <p class="text-xs text-zinc-500 mb-4">1 CYBER = CHF</p>
@@ -24,7 +24,7 @@
     </div>
 
     <div class="mt-4 text-sm">
-      <input id="amount" type="number" placeholder="CYBER‑Coins" class="w-full bg-black border border-zinc-700 rounded-xl p-2 text-center" />
+      <input id="amount" type="number" placeholder="CYBER-Coins" class="w-full bg-black border border-zinc-700 rounded-xl p-2 text-center" />
       <p class="mt-2 text-zinc-400" id="result"></p>
     </div>
 
@@ -36,7 +36,6 @@
         Kein offizielles Zahlungsmittel.
       </p>
     </div>
-    </div>
 
     <p class="mt-4 text-xs text-zinc-600" id="updated"></p>
   </div>
@@ -45,87 +44,52 @@
 let chart;
 let prices = [];
 let labels = [];
+let displayPrice = null;
 
 async function loadPrice() {
   try {
-    const res = await fetch('https://bissegger.github.io/CYBER-Coin/');
+    const res = await fetch('https://raw.githubusercontent.com/bissegger/CYBER-Coin/main/price.json');
     const data = await res.json();
-
-    document.getElementById('price').innerText = data.price.toFixed(3);
-    document.getElementById('updated').innerText = 'Letztes Update: ' + data.updated;
 
     prices.push(data.price);
     labels.push(new Date().toLocaleTimeString());
 
-    if (prices.length > 20) {
-      prices.shift();
-      labels.shift();
-    }
+    if (prices.length > 20) { prices.shift(); labels.shift(); }
 
+    document.getElementById('updated').innerText = 'Letztes Update: ' + data.updated;
+
+    if(displayPrice === null) displayPrice = data.price;
     updateChart();
   } catch (e) {
     document.getElementById('price').innerText = 'Fehler';
   }
 }
 
+function animatePrice() {
+  if (prices.length === 0) return;
+  const target = 70000;
+  const drift = (target - displayPrice) * 0.00002;
+  const noise = (Math.random() - 0.5) * displayPrice * 0.0003;
+  displayPrice += drift + noise;
+  document.getElementById('price').innerText = displayPrice.toFixed(3);
+}
+
 function updateChart() {
   const ctx = document.getElementById('chart');
-
   if (!chart) {
-    chart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [{
-          data: prices,
-          borderColor: '#22c55e',
-          tension: 0.3
-        }]
-      },
-      options: {
-        plugins: { legend: { display: false } },
-        scales: { x: { display: false } }
-      }
-    });
-  } else {
-    chart.update();
-  }
+    chart = new Chart(ctx, { type: 'line', data: { labels: labels, datasets: [{ data: prices, borderColor: '#22c55e', tension: 0.3 }] }, options: { plugins: { legend: { display: false } }, scales: { x: { display: false } } } });
+  } else { chart.update(); }
 }
 
 function convert() {
   const amount = Number(document.getElementById('amount').value);
-  const price = prices[prices.length - 1];
-  if (!price || !amount) return;
-  document.getElementById('result').innerText = amount + ' CYBER = ' + (amount * price).toFixed(2) + ' CHF';
+  if(!displayPrice || !amount) return;
+  document.getElementById('result').innerText = amount + ' CYBER = ' + (amount * displayPrice).toFixed(2) + ' CHF';
 }
 
 loadPrice();
-// GitHub liefert den echten Kurs (z. B. alle 5 Minuten per Action)
-// Die Anzeige wird alle 3 Sekunden weich animiert (wie bei Bitcoin)
-setInterval(animatePrice, 3000);
-
-let displayPrice = null;
-
-function animatePrice() {
-  if (prices.length === 0) return;
-  if (displayPrice === null) displayPrice = prices[prices.length - 1];
-
-  // Langfristiges Ziel (Bitcoin-Style Wachstum)
-  const target = 70000;
-  const real = prices[prices.length - 1];
-
-  // sanfte Annäherung + minimaler Markt-Jitter
-  const drift = (target - displayPrice) * 0.00002; // sehr langsam
-  const noise = (Math.random() - 0.5) * displayPrice * 0.0003;
-
-  displayPrice += drift + noise;
-
-  document.getElementById('price').innerText = displayPrice.toFixed(3);
-}
-
-// echter Kurs vom Server (nicht jede Sekunde möglich auf GitHub)
-loadPrice();
-setInterval(loadPrice, 300000); // 5 Minuten
+setInterval(loadPrice, 300000); // fetch alle 5 Minuten von GitHub
+setInterval(animatePrice, 3000); // Animation alle 3 Sekunden
 </script>
 
 </body>
