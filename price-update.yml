@@ -1,0 +1,44 @@
+name: CYBER-Coin Kurs Update
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"   # alle 5 Minuten
+  workflow_dispatch:
+
+jobs:
+  update-price:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Repo auschecken
+        uses: actions/checkout@v4
+
+      - name: Preis berechnen
+        run: |
+          PRICE_FILE=price.json
+
+          if [ ! -f "$PRICE_FILE" ]; then
+            PRICE=1.00
+          else
+            PRICE=$(jq '.price' $PRICE_FILE)
+          fi
+
+          TARGET=70000
+          DRIFT=$(awk "BEGIN {print ($TARGET - $PRICE) * 0.00002}")
+          NOISE=$(awk "BEGIN {print ($RANDOM/32768 - 0.5) * $PRICE * 0.002}")
+          NEW_PRICE=$(awk "BEGIN {print $PRICE + $DRIFT + $NOISE}")
+
+          TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+
+          jq -n \
+            --argjson price $(printf "%.3f" $NEW_PRICE) \
+            --arg updated "$TIMESTAMP" \
+            '{price: $price, updated: $updated}' > price.json
+
+      - name: Commit & Push
+        run: |
+          git config user.name "CYBER-Coin Bot"
+          git config user.email "cybercoin@github"
+          git add price.json
+          git commit -m "🔄 CYBER-Coin Kurs Update" || exit 0
+          git push
