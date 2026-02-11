@@ -1,112 +1,113 @@
-
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8" />
-  <title>CYBER-Coin Live Kurs</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CYBER-Coin</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body class="bg-black text-green-400 min-h-screen flex items-center justify-center">
 
-  <div class="bg-zinc-900 rounded-2xl shadow-xl p-6 w-full max-w-lg text-center">
-    <h1 class="text-3xl font-bold mb-1">🚀 CYBER-Coin</h1>
-    <p class="text-sm text-zinc-400 mb-4">Echter Live-Kurs (GitHub Pages, Repo-intern)</p>
+<div class="bg-zinc-900 rounded-2xl shadow-xl p-6 w-full max-w-lg text-center">
 
-    <div class="text-5xl font-mono mb-2" id="price">Lädt…</div>
-    <p class="text-xs text-zinc-500 mb-4">1 CYBER = CHF</p>
+<h1 class="text-3xl font-bold mb-2">🚀 CYBER-Coin</h1>
+<p class="text-sm text-zinc-400 mb-4">Echter Server Kurs</p>
 
-    <canvas id="chart" height="120"></canvas>
+<div id="price" class="text-5xl font-mono mb-2">Lädt...</div>
+<p class="text-xs text-zinc-500 mb-4">1 CYBER = CHF</p>
 
-    <div class="mt-4 grid grid-cols-2 gap-2">
-      <button onclick="loadPrice()" class="bg-green-500 text-black px-3 py-2 rounded-xl hover:bg-green-400 transition">🔄 Aktualisieren</button>
-      <button onclick="convert()" class="bg-zinc-700 px-3 py-2 rounded-xl hover:bg-zinc-600 transition">💱 Umrechnen</button>
-    </div>
+<canvas id="chart" height="120"></canvas>
 
-    <div class="mt-4 text-sm">
-      <input id="amount" type="number" placeholder="CYBER-Coins" class="w-full bg-black border border-zinc-700 rounded-xl p-2 text-center" />
-      <p class="mt-2 text-zinc-400" id="result"></p>
-    </div>
+<div class="mt-4">
+<input id="amount" type="number" placeholder="CYBER Coins"
+class="w-full bg-black border border-zinc-700 rounded-xl p-2 text-center">
+<button onclick="convert()"
+class="mt-2 bg-green-500 text-black px-3 py-2 rounded-xl hover:bg-green-400">
+Umrechnen
+</button>
+<p id="result" class="mt-2 text-zinc-400"></p>
+</div>
 
-    <div class="mt-6 border-t border-zinc-700 pt-4">
-      <p class="text-xs text-zinc-400 mb-2">CYBER-Coins kaufen (TWINT)</p>
-      <img src="twint-qr.png" alt="TWINT QR Code" class="mx-auto rounded-xl max-w-[200px]" />
-      <p class="mt-2 text-[10px] text-zinc-500">
-        CYBER-Coin ist ein Community-Token / Support-Coin.<br />
-        Kein offizielles Zahlungsmittel.
-      </p>
-    </div>
+<p class="mt-4 text-xs text-zinc-600" id="updated"></p>
 
-    <p class="mt-4 text-xs text-zinc-600" id="updated"></p>
-  </div>
+</div>
 
 <script>
+const apiURL = "https://DEINE-VERCEL-URL.vercel.app/api/price";
+
 let chart;
 let prices = [];
 let labels = [];
-let displayPrice = null;
-const targetPrice = 70000;
-const initialGrowthRate = 0.0000008; // sehr kleine Drift für Anfang
-const apiURL = 'price.json'; // relativ zum Repo
+let currentPrice = 0;
 
 async function loadPrice() {
-    try {
-        const res = await fetch(apiURL);
-        if(!res.ok) throw new Error('Netzwerkfehler');
-        const data = await res.json();
+  try {
+    const res = await fetch(apiURL);
+    const data = await res.json();
 
-        // Startwert ±1% zufällig
-        let startPrice = data.price * (1 + (Math.random() - 0.5) * 0.02);
-        prices.push(startPrice);
-        labels.push(new Date().toLocaleTimeString());
+    currentPrice = data.price_chf;
 
-        if(prices.length > 20){ prices.shift(); labels.shift(); }
+    document.getElementById("price").innerText =
+      currentPrice.toFixed(3);
 
-        // Sanfte Anpassung beim Neuladen
-        displayPrice = displayPrice === null ? startPrice : displayPrice * 0.8 + startPrice * 0.2;
+    document.getElementById("updated").innerText =
+      "Letztes Update: " +
+      new Date(data.updated).toLocaleTimeString();
 
-        document.getElementById('updated').innerText = 'Letztes Update: ' + data.updated;
-        updateChart();
-    } catch (e) {
-        console.error('Fehler beim Laden der API:', e);
-        // Fallback: Zufallswert ± kleine Schwankung
-        if(displayPrice === null) displayPrice = 1 * (1 + (Math.random()-0.5)*0.05);
-        document.getElementById('price').innerText = displayPrice.toFixed(3) + ' CHF (Offline-Fallback)';
+    prices.push(currentPrice);
+    labels.push(new Date().toLocaleTimeString());
+
+    if (prices.length > 30) {
+      prices.shift();
+      labels.shift();
     }
+
+    updateChart();
+  } catch {
+    document.getElementById("price").innerText = "Server Fehler";
+  }
 }
 
-function animatePrice() {
-    if(prices.length === 0) return;
+function updateChart() {
+  const ctx = document.getElementById("chart");
 
-    const growthRate = initialGrowthRate + (targetPrice - displayPrice)/(targetPrice*1000000);
-    const noise = (Math.random()-0.5) * displayPrice * 0.0005;
-    displayPrice += displayPrice * growthRate + noise;
-
-    document.getElementById('price').innerText = displayPrice.toFixed(3) + ' CHF';
+  if (!chart) {
+    chart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: labels,
+        datasets: [{
+          data: prices,
+          borderColor: "#22c55e",
+          tension: 0.3
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: { x: { display: false } }
+      }
+    });
+  } else {
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = prices;
+    chart.update();
+  }
 }
 
-function updateChart(){
-    const ctx = document.getElementById('chart');
-    if(!chart){
-        chart = new Chart(ctx, {
-            type:'line',
-            data:{ labels:labels, datasets:[{ data:prices, borderColor:'#22c55e', tension:0.3 }]},
-            options:{ plugins:{legend:{display:false}}, scales:{x:{display:false}}}
-        });
-    } else { chart.update(); }
+function convert() {
+  const amount = Number(document.getElementById("amount").value);
+  if (!amount || !currentPrice) return;
+
+  document.getElementById("result").innerText =
+    amount + " CYBER = " +
+    (amount * currentPrice).toFixed(2) +
+    " CHF";
 }
 
-function convert(){
-    const amount = Number(document.getElementById('amount').value);
-    if(!displayPrice || !amount) return;
-    document.getElementById('result').innerText = amount + ' CYBER = ' + (amount*displayPrice).toFixed(2) + ' CHF';
-}
-
-// Starte Live-Kurs
+setInterval(loadPrice, 5000);
 loadPrice();
-setInterval(loadPrice, 300000); // fetch alle 5 Minuten aus dem Repo
-setInterval(animatePrice, 3000); // Animation alle 3 Sekunden
 </script>
 
 </body>
