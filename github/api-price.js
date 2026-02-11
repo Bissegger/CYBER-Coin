@@ -1,0 +1,31 @@
+export default function handler(req, res) {
+
+  const startDate = new Date("2024-01-01");
+  const startPrice = 1.0;
+  const targetYears = 6;
+  const targetPrice = 70000;
+
+  const now = new Date();
+
+  // Jahre seit Start
+  const yearsPassed = (now - startDate) / (1000 * 60 * 60 * 24 * 365);
+
+  const progress = Math.min(yearsPassed / targetYears, 1);
+
+  // Exponentielles Wachstum Richtung Ziel
+  const growthFactor = Math.pow(targetPrice / startPrice, progress);
+
+  let basePrice = startPrice * growthFactor;
+
+  // sanfte, deterministische Volatilität
+  const timeFactor = now.getTime() / 10000000;
+  const pseudoRandom = Math.sin(timeFactor) * 0.05;
+
+  const finalPrice = basePrice * (1 + pseudoRandom);
+
+  res.status(200).json({
+    symbol: "CYBER",
+    price_chf: Number(finalPrice.toFixed(3)),
+    updated: now.toISOString()
+  });
+}
