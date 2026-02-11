@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -7,11 +8,9 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body class="bg-black text-green-400 min-h-screen flex items-center justify-center">
 
 <div class="bg-zinc-900 rounded-2xl shadow-xl p-6 w-full max-w-lg text-center">
-
 <h1 class="text-3xl font-bold mb-2">🚀 CYBER-Coin Wallet</h1>
 <p class="text-sm text-zinc-400 mb-4">Live Kurs + Wallet</p>
 
@@ -29,105 +28,121 @@
 <div class="mt-6 border-t border-zinc-700 pt-4">
 <h2 class="font-bold mb-2">Wallet</h2>
 <p id="wallet" class="mb-2 text-zinc-400">0 CYBER</p>
-<button onclick="buyCoins()" class="bg-blue-500 px-3 py-2 rounded-xl hover:bg-blue-400 mr-2">Coins kaufen</button>
+
+<button onclick="startBuy()" class="bg-blue-500 px-3 py-2 rounded-xl hover:bg-blue-400 mr-2">Coins kaufen</button>
 <button onclick="redeemCoins()" class="bg-red-500 px-3 py-2 rounded-xl hover:bg-red-400">Coins einlösen</button>
+
+<button onclick="downloadWallet()" class="bg-yellow-500 px-3 py-2 rounded-xl hover:bg-yellow-400 mt-2">Wallet herunterladen</button>
+<input type="file" id="uploadFile" style="display:none;" onchange="uploadWallet(event)">
+<button onclick="document.getElementById('uploadFile').click()" class="bg-purple-500 px-3 py-2 rounded-xl hover:bg-purple-400 mt-2">Wallet hochladen</button>
 
 <div class="mt-4" id="twintDiv" style="display:none;">
 <p class="text-xs text-zinc-400 mb-1">Scanne QR für TWINT:</p>
 <img src="twint-qr.png" alt="TWINT QR" class="mx-auto rounded-xl max-w-[200px]"/>
+<button onclick="confirmPayment()" class="mt-2 bg-green-500 px-3 py-2 rounded-xl hover:bg-green-400">Ich habe bezahlt</button>
 </div>
 
 </div>
-
 <p class="mt-4 text-xs text-zinc-600" id="updated"></p>
-
 </div>
 
 <script>
 const apiURL = "https://cyber-coin-2026.vercel.app/api-price";
-let chart;
-let prices = [];
-let labels = [];
-let currentPrice = 0;
+const verifyAPI = "https://cyber-coin-2026.vercel.app/api-verify-payment";
 
-// Local Wallet
-function getWallet() {
-  const wallet = JSON.parse(localStorage.getItem("cyberWallet") || "0");
-  return wallet;
-}
-function setWallet(value) {
-  localStorage.setItem("cyberWallet", JSON.stringify(value));
-  document.getElementById("wallet").innerText = value.toFixed(3) + " CYBER";
-}
+let chart, prices=[], labels=[], currentPrice=0;
+let pendingCoins = 0;
+let paymentID = "";
 
-// Load price
-async function loadPrice() {
-  try {
+// Wallet
+function getWallet(){return Number(localStorage.getItem("cyberWallet")||0);}
+function setWallet(value){localStorage.setItem("cyberWallet",value); document.getElementById("wallet").innerText=value.toFixed(3)+" CYBER";}
+setWallet(getWallet());
+
+// Live Price
+async function loadPrice(){
+  try{
     const res = await fetch(apiURL);
     const data = await res.json();
-
     currentPrice = data.price_chf;
-    document.getElementById("price").innerText = currentPrice.toFixed(3);
-    document.getElementById("updated").innerText =
-      "Letztes Update: " + new Date(data.updated).toLocaleTimeString();
-
-    prices.push(currentPrice);
-    labels.push(new Date().toLocaleTimeString());
-    if (prices.length > 30) { prices.shift(); labels.shift(); }
+    document.getElementById("price").innerText=currentPrice.toFixed(3);
+    document.getElementById("updated").innerText="Letztes Update: "+new Date(data.updated).toLocaleTimeString();
+    prices.push(currentPrice); labels.push(new Date().toLocaleTimeString());
+    if(prices.length>30){prices.shift(); labels.shift();}
     updateChart();
-  } catch {
-    document.getElementById("price").innerText = "Server Fehler";
-  }
+  }catch{document.getElementById("price").innerText="Server Fehler";}
 }
-
-// Chart
-function updateChart() {
+function updateChart(){
   const ctx = document.getElementById("chart");
-  if (!chart) {
-    chart = new Chart(ctx, {
-      type:"line",
-      data:{labels, datasets:[{data:prices,borderColor:"#22c55e",tension:0.3}]},
-      options:{plugins:{legend:{display:false}},scales:{x:{display:false}}}
-    });
-  } else { chart.data.labels = labels; chart.data.datasets[0].data = prices; chart.update(); }
+  if(!chart){chart=new Chart(ctx,{type:"line",data:{labels,datasets:[{data:prices,borderColor:"#22c55e",tension:0.3}]},options:{plugins:{legend:{display:false}},scales:{x:{display:false}}}});}
+  else{chart.data.labels=labels; chart.data.datasets[0].data=prices; chart.update();}
 }
-
-// Umrechnen
-function convert() {
-  const amount = Number(document.getElementById("amount").value);
-  if(!amount||!currentPrice) return;
-  document.getElementById("result").innerText = amount+" CYBER = "+(amount*currentPrice).toFixed(2)+" CHF";
+function convert(){
+  const amount=Number(document.getElementById("amount").value);
+  if(!amount||!currentPrice)return;
+  document.getElementById("result").innerText=amount+" CYBER = "+(amount*currentPrice).toFixed(2)+" CHF";
 }
+setInterval(loadPrice,3000); loadPrice();
 
-// Coins kaufen
-function buyCoins() {
-  document.getElementById("twintDiv").style.display="block";
-  const coinsToAdd = Number(prompt("Wie viele CYBER-Coins kaufen?","10"));
-  if(coinsToAdd>0){
-    const wallet = getWallet();
-    setWallet(wallet + coinsToAdd);
-    alert(coinsToAdd + " CYBER-Coins wurden deinem Wallet hinzugefügt!");
+// Kaufprozess
+function startBuy(){
+  const coins = Number(prompt("Wie viele CYBER-Coins kaufen?","10"));
+  if(coins>0){
+    pendingCoins = coins;
+    paymentID = "pay_" + Date.now(); // eindeutige Payment-ID
+    document.getElementById("twintDiv").style.display="block";
+    alert("Bitte mit TWINT bezahlen! Deine Payment-ID: " + paymentID);
   }
 }
 
-// Coins einlösen
-function redeemCoins() {
-  const wallet = getWallet();
-  const coinsToRedeem = Number(prompt("Wie viele CYBER-Coins einlösen?",wallet));
-  if(coinsToRedeem>0 && coinsToRedeem <= wallet){
-    setWallet(wallet - coinsToRedeem);
-    const chf = coinsToRedeem * currentPrice;
-    alert(coinsToRedeem + " CYBER-Coins eingelöst = " + chf.toFixed(2) + " CHF");
-  } else {
-    alert("Nicht genug Coins im Wallet!");
+// Coins freigeben nur nach server-side Bestätigung
+async function confirmPayment(){
+  if(!paymentID || pendingCoins<=0) return;
+  try{
+    const res = await fetch(`${verifyAPI}?id=${paymentID}`);
+    const data = await res.json();
+    if(data.success){
+      setWallet(getWallet() + pendingCoins);
+      alert(`${pendingCoins} CYBER-Coins wurden hinzugefügt!`);
+      pendingCoins=0; paymentID="";
+      document.getElementById("twintDiv").style.display="none";
+    } else {
+      alert("Zahlung noch nicht bestätigt!");
+    }
+  }catch{
+    alert("Server Fehler bei der Zahlungsprüfung!");
   }
 }
 
-// Init
-setWallet(getWallet());
-setInterval(loadPrice,3000);
-loadPrice();
+// Einlösen
+function redeemCoins(){
+  const wallet=getWallet();
+  const coinsToRedeem=Number(prompt("Wie viele CYBER-Coins einlösen?",wallet));
+  if(coinsToRedeem>0 && coinsToRedeem<=wallet){
+    setWallet(wallet-coinsToRedeem);
+    const chf=coinsToRedeem*currentPrice;
+    alert(coinsToRedeem+" CYBER-Coins eingelöst = "+chf.toFixed(2)+" CHF");
+  } else {alert("Nicht genug Coins im Wallet!");}
+}
+
+// Wallet export/import
+function downloadWallet(){
+  const wallet=getWallet();
+  const data=JSON.stringify({wallet});
+  const blob=new Blob([data],{type:"application/json"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a"); a.href=url; a.download="cyber-wallet.json"; a.click();
+  URL.revokeObjectURL(url);
+}
+function uploadWallet(event){
+  const file=event.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{const data=JSON.parse(e.target.result); if(data.wallet!==undefined){setWallet(data.wallet); alert("Wallet erfolgreich geladen!");}}
+    catch{alert("Ungültige Datei!");}
+  };
+  reader.readAsText(file);
+}
 </script>
-
 </body>
 </html>
